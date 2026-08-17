@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>배당관리 대시보드</title>
+<style>
+  :root{
+    --bg:#f7f4ec;
+    --bg-soft:#eee7d9;
+    --card:#ffffff;
+    --card-hi:#faf6ec;
+    --line:#e4dcc9;
+    --text:#2c2620;
+    --muted:#6d6252;
+    --muted2:#948a78;
+    --gold:#a97a2e;
+    --gold-soft:rgba(169,122,46,0.12);
+    --teal:#2f8474;
+    --teal-soft:rgba(47,132,116,0.12);
+    --up:#3f8f5f;
+    --down:#c25a44;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(1200px 500px at 50% -10%, rgba(169,122,46,0.10), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:0 0 48px 0;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:22px 16px 0;}
+  .two-col{display:block;}
+
+  @media (min-width:700px){
+    .wrap{max-width:900px;padding:28px 24px 0;}
+    h1{font-size:32px;}
+    .kpi-grid{grid-template-columns:repeat(4,1fr);}
+  }
+  @media (min-width:1000px){
+    .wrap{max-width:1120px;}
+    .two-col{display:grid;grid-template-columns:1.1fr 1fr;gap:18px;align-items:start;}
+    .two-col .section{margin-bottom:0;}
+  }
+  @media (min-width:1300px){
+    .wrap{max-width:1280px;}
+  }
+
+  /* Header */
+  .eyebrow{
+    font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--gold);font-weight:600;margin-bottom:6px;
+  }
+  h1{
+    font-family:'Source Serif 4',serif;
+    font-weight:700;
+    font-size:28px;
+    line-height:1.15;
+    margin:0 0 4px 0;
+    color:var(--text);
+  }
+  .title-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+  .settings-btn{
+    flex:none;width:38px;height:38px;border-radius:12px;
+    background:var(--card);border:1px solid var(--line);color:var(--muted);
+    font-size:18px;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;margin-top:2px;
+  }
+  .settings-btn:active{background:var(--bg-soft);}
+
+  /* ---- Overlay (설정 / 배당 업데이트 마법사 공용) ---- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(44,38,32,0.35);
+    display:none;align-items:flex-end;justify-content:center;z-index:100;
+  }
+  .overlay.open{display:flex;}
+  .sheet{
+    background:var(--bg);width:100%;max-width:720px;max-height:92vh;
+    border-radius:20px 20px 0 0;overflow-y:auto;padding:18px 16px 28px;
+    box-shadow:0 -8px 30px rgba(0,0,0,0.18);
+  }
+  @media (min-width:700px){
+    .overlay{align-items:center;}
+    .sheet{border-radius:18px;max-height:88vh;}
+  }
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .sheet-title{font-family:'Source Serif 4',serif;font-size:18px;font-weight:700;}
+  .sheet-close{
+    background:var(--bg-soft);border:1px solid var(--line);color:var(--muted);
+    width:32px;height:32px;border-radius:10px;font-size:15px;cursor:pointer;
+  }
+
+  .menu-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:14px 4px;border-bottom:1px solid var(--line);cursor:pointer;
+  }
+  .menu-item:last-child{border-bottom:none;}
+  .menu-item-name{font-size:14.5px;font-weight:600;color:var(--text);}
+  .menu-item-desc{font-size:11.5px;color:var(--muted2);margin-top:2px;}
+  .menu-item-arrow{color:var(--muted2);font-size:15px;}
+  .menu-item.disabled{opacity:.4;cursor:default;}
+
+  .field-label{font-size:12px;color:var(--muted);font-weight:600;margin:16px 0 6px;}
+  .field-label:first-child{margin-top:0;}
+  .text-input, .date-input, textarea.text-input{
+    width:100%;padding:10px 12px;border-radius:10px;background:var(--card);
+    border:1px solid var(--line);color:var(--text);font-size:13px;font-family:inherit;
+  }
+  textarea.text-input{min-height:110px;resize:vertical;}
+  .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+  .check-card{
+    display:flex;align-items:center;gap:10px;padding:12px;border-radius:12px;
+    background:var(--card);border:1px solid var(--line);margin-bottom:8px;cursor:pointer;
+  }
+  .check-card.checked{border-color:rgba(169,122,46,.5);background:var(--gold-soft);}
+  .check-card input{width:17px;height:17px;flex:none;}
+  .check-card-body{flex:1;}
+  .check-card-title{font-size:13px;font-weight:600;color:var(--text);}
+  .check-card-sub{font-size:11px;color:var(--muted2);margin-top:1px;}
+
+  .btn{
+    padding:11px 16px;border-radius:12px;font-size:13.5px;font-weight:600;
+    border:1px solid var(--line);cursor:pointer;font-family:inherit;
+  }
+  .btn-primary{background:var(--gold);border-color:var(--gold);color:#fff;}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed;}
+  .btn-secondary{background:var(--card);color:var(--muted);}
+  .btn-row{display:flex;gap:8px;margin-top:18px;}
+  .btn-row .btn{flex:1;}
+
+  .step-dots{display:flex;gap:6px;margin-bottom:16px;}
+  .step-dot{height:4px;flex:1;border-radius:2px;background:var(--bg-soft);}
+  .step-dot.active{background:var(--gold);}
+  .step-dot.done{background:var(--teal);}
+
+  .preview-row{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:11px 12px;margin-bottom:8px;font-size:12.5px;
+  }
+  .preview-row .pr-top{display:flex;justify-content:space-between;font-weight:600;color:var(--text);margin-bottom:4px;}
+  .preview-row .pr-line{color:var(--muted);font-size:11.5px;margin-top:1px;}
+  .preview-row.warn{border-color:rgba(194,90,68,.4);background:rgba(194,90,68,.06);}
+  .preview-row.dup{border-color:rgba(148,138,120,.4);opacity:.7;}
+  .badge{font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;}
+  .badge.ok{background:rgba(47,132,116,.12);color:var(--teal);}
+  .badge.warn{background:rgba(194,90,68,.12);color:var(--down);}
+  .badge.dup{background:var(--bg-soft);color:var(--muted2);}
+
+  .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;}
+  .summary-cell{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;}
+  .summary-cell b{display:block;font-size:19px;font-family:'Source Serif 4',serif;margin-top:2px;}
+
+  /* ---- 가로 화면(태블릿/모바일 랜드스케이프) 최적화 ---- */
+  @media (orientation:landscape) and (max-width:1000px) and (min-width:560px){
+    .wrap{max-width:1040px;padding:16px 22px 0;}
+    .two-col{display:grid;grid-template-columns:1.1fr 1fr;gap:16px;}
+    .kpi-grid{grid-template-columns:repeat(4,1fr);}
+    .sheet{max-height:94vh;}
+  }
+  @media (orientation:landscape) and (max-height:480px){
+    .wrap{padding-top:12px;}
+    h1{font-size:22px;}
+    .subhead{margin-bottom:14px;}
+  }
+  .subhead{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+  .subhead b{color:var(--text);font-weight:600;}
+
+  /* KPI grid */
+  .kpi-grid{
+    display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;
+  }
+  .kpi{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px 14px 12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .kpi::after{
+    content:"";position:absolute;top:0;left:0;width:3px;height:100%;
+    background:var(--gold-line,var(--gold));opacity:.55;
+  }
+  .kpi.teal::after{background:var(--teal);}
+  .kpi-label{font-size:11px;color:var(--muted2);letter-spacing:.03em;margin-bottom:6px;}
+  .kpi-value{font-family:'Source Serif 4',serif;font-size:21px;font-weight:600;color:var(--text);white-space:nowrap;}
+  .kpi-delta{font-size:11.5px;margin-top:5px;font-weight:600;}
+  .kpi-delta.up{color:var(--up);}
+  .kpi-delta.down{color:var(--down);}
+  .kpi-delta.flat{color:var(--muted);}
+
+  /* Section */
+  .section{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:18px 16px 14px;
+    margin-bottom:16px;
+  }
+  .section-title{
+    font-family:'Source Serif 4',serif;
+    font-size:16px;font-weight:600;color:var(--text);margin:0 0 2px 0;
+  }
+  .section-sub{font-size:12px;color:var(--muted2);margin-bottom:12px;}
+  .chart-holder{position:relative;width:100%;}
+
+  /* Legend chips */
+  .chips{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+  .chip{
+    font-size:11.5px;padding:5px 10px;border-radius:999px;
+    background:var(--bg-soft);border:1px solid var(--line);color:var(--muted);
+    display:flex;align-items:center;gap:6px;
+  }
+  .dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+
+  .chip.tab{cursor:pointer;font-weight:600;transition:all .15s;}
+  .chip.tab.active{background:var(--gold-soft);border-color:rgba(169,122,46,.4);color:var(--gold);}
+  .chip.tab.disabled{opacity:.35;cursor:not-allowed;}
+  .ym-row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .ym-row:last-child{border-bottom:none;}
+  .ym-rank{color:var(--gold);font-weight:700;width:18px;display:inline-block;font-size:11px;}
+  .ym-name{color:var(--text);}
+  .ym-sub{color:var(--muted2);font-size:11px;margin-top:1px;}
+  .ym-val{color:var(--text);font-variant-numeric:tabular-nums;font-weight:600;}
+  .ym-empty{color:var(--muted2);font-size:12.5px;text-align:center;padding:24px 0;}
+
+  /* Bars (custom, for account/owner breakdown) */
+  .bar-row{margin-bottom:11px;}
+  .bar-row:last-child{margin-bottom:0;}
+  .bar-top{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:5px;}
+  .bar-name{color:var(--text);font-weight:500;}
+  .bar-val{color:var(--muted);font-variant-numeric:tabular-nums;}
+  .bar-track{height:8px;border-radius:5px;background:var(--bg-soft);overflow:hidden;}
+  .bar-fill{height:100%;border-radius:5px;}
+  .bar-row.clickable{cursor:pointer;padding:6px 8px;margin:0 -8px 3px;border-radius:8px;transition:background .15s;}
+  .bar-row.clickable:hover, .bar-row.clickable:active{background:var(--bg-soft);}
+  .bar-row.clickable .bar-name::after{content:" ›";color:var(--muted2);}
+
+  .bar-row.clickable.selected{background:var(--gold-soft);}
+  .bar-row.clickable.selected .bar-name{color:var(--gold);}
+  #accountBars{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+  .owner-group{margin-bottom:16px;min-width:0;}
+  .owner-group:last-child{margin-bottom:0;}
+  .owner-group-head{flex-wrap:wrap;}
+  .owner-group .bar-name{font-size:12px;}
+  .owner-group .bar-val{font-size:11px;}
+  .owner-group .bar-row.clickable{padding:6px 6px;margin:0 -6px 3px;}
+  .owner-group .bar-top{flex-direction:column;align-items:flex-start;gap:1px;}
+  .owner-group-head{
+    display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;
+    color:var(--text);margin-bottom:10px;padding-bottom:7px;border-bottom:1px solid var(--line);
+  }
+  .owner-group-val{margin-left:auto;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;}
+  .close-btn{
+    background:var(--bg-soft);border:1px solid var(--line);color:var(--muted);
+    font-size:11px;padding:5px 10px;border-radius:999px;cursor:pointer;font-family:inherit;
+  }
+  .close-btn:active{background:var(--line);}
+
+  /* Table */
+  .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;min-width:560px;}
+  th{
+    text-align:left;font-weight:600;color:var(--muted2);font-size:10.5px;
+    text-transform:uppercase;letter-spacing:.04em;
+    padding:0 8px 8px 0;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--card);
+  }
+  td{padding:9px 8px 9px 0;border-bottom:1px solid var(--line);color:var(--text);white-space:nowrap;}
+  tr:last-child td{border-bottom:none;}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .rank{color:var(--gold);font-weight:700;width:20px;display:inline-block;}
+  .tag{
+    font-size:10px;padding:2px 7px;border-radius:999px;
+    background:var(--bg-soft);color:var(--muted);border:1px solid var(--line);
+  }
+  .tag.owner-본인{color:var(--gold);border-color:rgba(169,122,46,.3);}
+  .tag.owner-배우자{color:var(--teal);border-color:rgba(47,132,116,.3);}
+
+  /* search */
+  .search-box{
+    width:100%;padding:10px 12px;border-radius:10px;background:var(--bg-soft);
+    border:1px solid var(--line);color:var(--text);font-size:13px;margin-bottom:12px;
+    font-family:inherit;
+  }
+  .search-box::placeholder{color:var(--muted2);}
+
+  .foot-note{font-size:11px;color:var(--muted2);text-align:center;margin-top:18px;line-height:1.6;}
+
+  ::-webkit-scrollbar{height:6px;width:6px;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">DIVIDEND LEDGER · 2026</div>
+  <div class="title-row">
+    <h1>배당관리 대시보드</h1>
+    <button class="settings-btn" id="openSettingsBtn" aria-label="설정" type="button">⚙️</button>
+  </div>
+  <div class="subhead" id="subhead">구글 시트에서 데이터를 불러오는 중…</div>
+  <div id="loadStatus"></div>
+
+  <div class="section">
+    <div class="section-title">연도 · 월별 배당 내역</div>
+    <div class="section-sub" id="ymSub"></div>
+    <div class="chips" id="yearTabs"></div>
+    <div id="ymList" style="margin-top:14px;"></div>
+  </div>
+
+  <div class="two-col">
+  <div class="section">
+    <div class="section-title">월별 배당 합계 추이</div>
+    <div class="section-sub" id="trendSub">전 계좌 합산 (원)</div>
+    <div class="chart-holder" id="trendChart" style="height:220px;"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">소유주 · 계좌별 비중</div>
+    <div class="section-sub" id="ownerSectionSub">최근월(7월) 배당 기준</div>
+    <div style="display:flex;gap:14px;align-items:center;margin-bottom:14px;">
+      <div class="chart-holder" id="ownerDonut" style="height:150px;width:150px;flex:none;"></div>
+      <div id="ownerLegend" style="flex:1;"></div>
+    </div>
+    <div id="accountBars"></div>
+    <div id="accountDetailWrap" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid var(--line);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div class="section-title" id="accountDetailTitle" style="font-size:14px;"></div>
+        <button id="closeDetail" class="close-btn">닫기 ✕</button>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>종목명</th><th class="num">배당률</th><th class="num" id="detailMonthHeader">7월</th><th class="num" id="detailPrevMonthHeader">6월</th></tr>
+          </thead>
+          <tbody id="accountDetailBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div class="foot-note">업로드하신 배당관리.xlsx 데이터를 기준으로 자동 집계했습니다.<br>합계 행은 검증용으로 제외하고 계산했습니다.<br>상단 월별 막대를 누르면 아래 계좌별 비중이 해당 월 기준으로 바뀝니다.<br>계좌 막대를 누르면 해당 계좌의 보유 종목이 펼쳐집니다.</div>
+</div>
+
+<!-- ===== 설정 메뉴 ===== -->
+<div class="overlay" id="settingsOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">설정</div>
+      <button class="sheet-close" id="closeSettingsBtn" type="button">✕</button>
+    </div>
+    <div class="menu-item" id="menuUpdateDividend">
+      <div>
+        <div class="menu-item-name">다음배당 업데이트</div>
+        <div class="menu-item-desc">카카오톡 배당 알림을 읽어 시트에 자동 반영</div>
+      </div>
+      <div class="menu-item-arrow">›</div>
+    </div>
+    <div class="menu-item disabled" style="display:none;">
+      <div>
+        <div class="menu-item-name">연동 설정 (Apps Script 주소)</div>
+        <div class="menu-item-desc" id="appsScriptStatusLabel">미설정</div>
+      </div>
+      <div class="menu-item-arrow">›</div>
+    </div>
+    <div class="menu-item" id="menuAppsScript">
+      <div>
+        <div class="menu-item-name">시트 연동 주소 설정</div>
+        <div class="menu-item-desc" id="appsScriptStatusLabel2">배당 업데이트를 위한 Apps Script 웹앱 주소 등록 · 미설정</div>
+      </div>
+      <div class="menu-item-arrow">›</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 다음배당 업데이트 마법사 ===== -->
+<div class="overlay" id="updateOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">다음배당 업데이트</div>
+      <button class="sheet-close" id="closeUpdateBtn" type="button">✕</button>
+    </div>
+    <div class="step-dots" id="stepDots"></div>
+    <div id="wizardBody"></div>
+  </div>
+</div>
+
+<!-- ===== Apps Script 주소 설정 ===== -->
+<div class="overlay" id="appsScriptOverlay">
+  <div class="sheet">
+    <div class="sheet-head">
+      <div class="sheet-title">시트 연동 주소 설정</div>
+      <button class="sheet-close" id="closeAppsScriptBtn" type="button">✕</button>
+    </div>
+    <div class="field-label">Apps Script 웹앱 URL</div>
+    <input class="text-input" id="appsScriptUrlInput" placeholder="https://script.google.com/macros/s/.../exec">
+    <div style="font-size:11.5px;color:var(--muted2);margin-top:8px;line-height:1.6;">
+      배당관리 시트에 실제로 값을 써넣으려면 구글 Apps Script 웹앱 배포가 한 번 필요합니다.
+      안내 문서의 스크립트를 시트에 붙여넣고 배포한 뒤, 발급된 URL을 여기에 저장해주세요.
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" id="cancelAppsScriptBtn" type="button">취소</button>
+      <button class="btn btn-primary" id="saveAppsScriptBtn" type="button">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let RAW = [];
+
+// ---- 구글 시트(gviz JSONP) 연동 — CORS 제약을 받지 않는 스크립트 태그 방식 ----
+const SHEET_ID = '1Ky8-z2_ynidm6otjIjZehw743wj9Vp8QK5usfOXXhJY';
+const SHEET_GID = '0';
+
+function jsonpLoad(url, callbackName, timeoutMs = 15000){
+  return new Promise((resolve, reject)=>{
+    let done = false;
+    const script = document.createElement('script');
+    const cleanup = () => {
+      delete window[callbackName];
+      if(script.parentNode) script.parentNode.removeChild(script);
+    };
+    window[callbackName] = (data) => {
+      done = true;
+      cleanup();
+      resolve(data);
+    };
+    script.onerror = () => {
+      if(!done){ cleanup(); reject(new Error('스크립트 로드 실패 (시트 접근 권한을 확인해주세요)')); }
+    };
+    script.src = url;
+    document.body.appendChild(script);
+    setTimeout(()=>{
+      if(!done){ cleanup(); reject(new Error('응답 시간 초과')); }
+    }, timeoutMs);
+  });
+}
+
+function parseGvizTable(data){
+  if(!data || !data.table) throw new Error('시트 응답 형식이 올바르지 않습니다.');
+  const headers = data.table.cols.map(c => (c.label || '').toString().trim());
+  return data.table.rows.map(r=>{
+    const obj = {};
+    headers.forEach((h,i)=>{
+      const cell = r.c && r.c[i];
+      let v = '', f = '';
+      if(cell){
+        if(cell.v !== null && cell.v !== undefined) v = cell.v;
+        if(cell.f !== null && cell.f !== undefined) f = cell.f;
+      }
+      obj[h] = {v, f};
+    });
+    return obj;
+  });
+}
+
+function setLoadStatus(html){
+  const el = document.getElementById('loadStatus');
+  if(el) el.innerHTML = html;
+}
+
+async function loadDataFromSheet(){
+  try{
+    setLoadStatus('데이터 불러오는 중…');
+    const cbName = 'gvizCB_' + Date.now();
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=responseHandler:${cbName}&gid=${SHEET_GID}`;
+    const data = await jsonpLoad(url, cbName);
+    const rawRows = parseGvizTable(data);
+    if(rawRows.length === 0) throw new Error('시트에 데이터가 없습니다.');
+
+    const allHeaders = Object.keys(rawRows[0] || {});
+    const monthKeyPattern = /^(\d{1,2})월배당$/;
+    const detectedMonthKeys = allHeaders
+      .filter(h => monthKeyPattern.test(h))
+      .sort((a,b) => Number(a.match(monthKeyPattern)[1]) - Number(b.match(monthKeyPattern)[1]));
+    window.__DIV_MONTH_KEYS__ = detectedMonthKeys;
+    const numKeys = [...detectedMonthKeys, '합계'];
+    const textKeys = ['소유주','계좌명','계좌번호','종목명'];
+
+    RAW = rawRows
+      .map(r=>{
+        const obj = {};
+        Object.keys(r).forEach(k=>{
+          const cell = r[k] || {v:'', f:''};
+          if(numKeys.includes(k)){
+            const raw = (typeof cell.v === 'number') ? cell.v : (cell.v || cell.f || '').toString().replace(/,/g,'').trim();
+            obj[k] = raw === '' ? 0 : Number(raw);
+          } else if(k === '최근배당률'){
+            const s = (cell.f || cell.v || '').toString().trim();
+            obj[k] = s === '' ? null : s;
+          } else {
+            obj[k] = (cell.v !== undefined && cell.v !== null && cell.v !== '') ? cell.v.toString().trim() : (cell.f || '').toString().trim();
+          }
+        });
+        return obj;
+      })
+      .filter(r => r['소유주'] && r['종목명'] && r['소유주'] !== '합계' && r['계좌명'] !== '합계');
+
+    if(RAW.length === 0) throw new Error('유효한 종목 데이터를 찾지 못했습니다.');
+
+    setLoadStatus('');
+    initDashboard();
+  }catch(err){
+    setLoadStatus(`
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;color:var(--muted);font-size:13px;line-height:1.6;">
+        <b style="color:var(--down);">시트를 불러오지 못했습니다.</b><br>
+        (${(err && err.message) ? err.message : err})<br><br>
+        시트 공유 설정이 "링크가 있는 모든 사용자 · 뷰어"인지 확인해주세요.
+        <button id="retryLoad" style="margin-top:10px;display:block;background:var(--bg-soft);border:1px solid var(--line);color:var(--text);font-size:12px;padding:6px 12px;border-radius:8px;cursor:pointer;font-family:inherit;">다시 시도</button>
+      </div>`);
+    const retryBtn = document.getElementById('retryLoad');
+    if(retryBtn) retryBtn.addEventListener('click', loadDataFromSheet);
+  }
+}
+
+function initDashboard(){
+
+const MKEYS = (window.__DIV_MONTH_KEYS__ && window.__DIV_MONTH_KEYS__.length)
+  ? window.__DIV_MONTH_KEYS__
+  : ['1월배당','2월배당','3월배당','4월배당','5월배당','6월배당','7월배당'];
+const MONTHS = MKEYS.map(k => k.replace('배당',''));
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+const fmtMan = n => (n/10000).toLocaleString('ko-KR',{maximumFractionDigits:0}) + '만원';
+
+// ---- Aggregations ----
+const monthlyTotals = MKEYS.map(k => RAW.reduce((s,r)=>s+(r[k]||0),0));
+const grandTotal = monthlyTotals.reduce((a,b)=>a+b,0);
+const accountCount = new Set(RAW.map(r=>r.소유주+' · '+r.계좌명)).size;
+
+let curMonthKey = MKEYS[MKEYS.length-1]; // 기본값: 최근월(7월)
+const ownerColors = {'본인':'#a97a2e','배우자':'#2f8474'};
+
+function computeOwnerAccount(monthKey){
+  const ownerTotals = {};
+  const accountTotals = {};
+  RAW.forEach(r=>{
+    const v = r[monthKey]||0;
+    ownerTotals[r.소유주] = (ownerTotals[r.소유주]||0) + v;
+    const key = r.소유주 + ' · ' + r.계좌명;
+    accountTotals[key] = (accountTotals[key]||0) + v;
+  });
+  return {ownerTotals, accountTotals};
+}
+
+// ---- 연도 · 월별 배당 내역 (내림차순, 클릭 가능) ----
+let curYear = 2026;
+
+function renderYearTabs(){
+  document.getElementById('yearTabs').innerHTML = [2026,2025].map(y=>{
+    const has = y === 2026;
+    const cls = ['chip','tab', y===curYear?'active':'', has?'':'disabled'].filter(Boolean).join(' ');
+    return `<span class="${cls}" data-year="${y}">${y}년${has?'':' (데이터 없음)'}</span>`;
+  }).join('');
+}
+
+function renderYmContent(){
+  document.getElementById('ymSub').textContent = `${curYear}년 월별 배당 합계 · 막대를 누르면 아래 내역이 바뀌어요`;
+  if(curYear !== 2026){
+    document.getElementById('ymList').innerHTML = `<div class="ym-empty">${curYear}년 데이터가 없습니다.</div>`;
+    return;
+  }
+  const monthRows = MKEYS.map((k,i)=>({label:MONTHS[i], key:k, val:monthlyTotals[i]})).reverse();
+  const maxV = Math.max(...monthRows.map(m=>m.val));
+  document.getElementById('ymList').innerHTML = monthRows.map(m=>{
+    const pct = maxV>0 ? (m.val/maxV*100).toFixed(1) : 0;
+    const selCls = m.key === curMonthKey ? ' selected' : '';
+    return `
+    <div class="bar-row clickable${selCls}" data-monthkey="${m.key}">
+      <div class="bar-top"><span class="bar-name">${m.label}</span><span class="bar-val">${fmt(m.val)}원</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:#a97a2e;"></div></div>
+    </div>`;
+  }).join('');
+}
+
+document.getElementById('yearTabs').addEventListener('click', (e)=>{
+  const el = e.target.closest('[data-year]');
+  if(!el) return;
+  curYear = Number(el.dataset.year);
+  renderYearTabs(); renderYmContent();
+});
+
+document.getElementById('ymList').addEventListener('click', (e)=>{
+  const row = e.target.closest('[data-monthkey]');
+  if(!row) return;
+  curMonthKey = row.dataset.monthkey;
+  renderYmContent();
+  renderOwnerAccountSection();
+  document.getElementById('accountDetailWrap').style.display = 'none';
+});
+
+renderYearTabs(); renderYmContent();
+
+// ---- Header subhead ----
+document.getElementById('subhead').innerHTML =
+  `총 <b>${RAW.length}개</b> 보유 종목 · <b>${accountCount}개</b> 계좌 · ${MONTHS[0]}~${MONTHS[MONTHS.length-1]} 누적 <b>${fmt(grandTotal)}원</b>`;
+document.getElementById('trendSub').textContent = `${MONTHS[0]} – ${MONTHS[MONTHS.length-1]}, 전 계좌 합산 (원)`;
+
+// ---- SVG trend line chart (no external libs) ----
+(function drawTrend(){
+  const W = 320, H = 220, padL = 46, padR = 10, padT = 14, padB = 26;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const maxV = Math.max(...monthlyTotals) * 1.12;
+  const minV = 0;
+  const xAt = i => padL + (innerW * i/(MONTHS.length-1));
+  const yAt = v => padT + innerH - (innerH * (v-minV)/(maxV-minV));
+
+  const pts = monthlyTotals.map((v,i)=>[xAt(i), yAt(v)]);
+  const linePath = pts.map((p,i)=>(i===0?'M':'L')+p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ');
+  const areaPath = linePath + ` L${pts[pts.length-1][0].toFixed(1)},${(padT+innerH).toFixed(1)} L${pts[0][0].toFixed(1)},${(padT+innerH).toFixed(1)} Z`;
+
+  const gridLines = [0,0.25,0.5,0.75,1].map(f=>{
+    const y = padT + innerH*f;
+    const val = maxV*(1-f);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#e4dcc9" stroke-width="1"/>
+      <text x="${padL-8}" y="${y+3}" text-anchor="end" font-size="9" fill="#948a78">${fmtMan(val)}</text>`;
+  }).join('');
+
+  const xLabels = MONTHS.map((m,i)=>`<text x="${xAt(i)}" y="${H-8}" text-anchor="middle" font-size="9.5" fill="#6d6252">${m}</text>`).join('');
+  const dots = pts.map((p,i)=>`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#a97a2e" stroke="#f7f4ec" stroke-width="2">
+      <title>${MONTHS[i]}: ${fmt(monthlyTotals[i])}원</title></circle>`).join('');
+
+  document.getElementById('trendChart').innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:100%;overflow:visible;" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#a97a2e" stop-opacity="0.24"/>
+          <stop offset="100%" stop-color="#a97a2e" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${gridLines}
+      <path d="${areaPath}" fill="url(#areaFill)"/>
+      <path d="${linePath}" fill="none" stroke="#a97a2e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      ${dots}
+      ${xLabels}
+    </svg>`;
+})();
+
+// ---- 소유주/계좌별 비중 (선택된 월 기준, 도넷 + 막대) ----
+function drawDonut(ownerEntries, ownerGrandTotal){
+  const size = 150, cx = size/2, cy = size/2, r = 58, sw = 20;
+  const circ = 2*Math.PI*r;
+  let offset = 0;
+  const segs = ownerEntries.map(([name,val])=>{
+    const frac = ownerGrandTotal>0 ? val/ownerGrandTotal : 0;
+    const len = frac*circ;
+    const seg = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+      stroke="${ownerColors[name]||'#8B93A0'}" stroke-width="${sw}"
+      stroke-dasharray="${len.toFixed(2)} ${(circ-len).toFixed(2)}"
+      stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})">
+      <title>${name}: ${fmt(val)}원 (${(frac*100).toFixed(1)}%)</title>
+    </circle>`;
+    offset += len;
+    return seg;
+  }).join('');
+  const monthLabel = MONTHS[MKEYS.indexOf(curMonthKey)] || '';
+  document.getElementById('ownerDonut').innerHTML = `
+    <svg viewBox="0 0 ${size} ${size}" style="width:100%;height:100%;">
+      ${segs}
+      <text x="${cx}" y="${cy-4}" text-anchor="middle" font-size="10" fill="#6d6252">${monthLabel}</text>
+      <text x="${cx}" y="${cy+12}" text-anchor="middle" font-size="12.5" fill="#2c2620" font-weight="600">${fmtMan(ownerGrandTotal)}</text>
+    </svg>`;
+}
+
+function renderOwnerAccountSection(){
+  const monthLabel = MONTHS[MKEYS.indexOf(curMonthKey)] || '';
+  document.getElementById('ownerSectionSub').textContent = `${monthLabel} 배당 기준`;
+
+  const {ownerTotals, accountTotals} = computeOwnerAccount(curMonthKey);
+  const ownerEntries = Object.entries(ownerTotals).sort((a,b)=>b[1]-a[1]);
+  const ownerGrandTotal = ownerEntries.reduce((s,e)=>s+e[1],0);
+
+  drawDonut(ownerEntries, ownerGrandTotal);
+
+  document.getElementById('ownerLegend').innerHTML = ownerEntries.map(([name,val])=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <span style="display:flex;align-items:center;gap:7px;font-size:13px;">
+        <span class="dot" style="background:${ownerColors[name]||'#8B93A0'};"></span>${name}
+      </span>
+      <span style="font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;">
+        ${(ownerGrandTotal>0 ? (val/ownerGrandTotal*100).toFixed(1) : '0.0')}%
+      </span>
+    </div>
+  `).join('') + `<div style="font-size:11px;color:var(--muted2);margin-top:4px;">${monthLabel} 배당 ${fmt(ownerGrandTotal)}원 기준</div>`;
+
+  const accountList = Object.entries(accountTotals).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('accountBars').innerHTML = ownerEntries.map(([owner, ownerVal])=>{
+    const color = ownerColors[owner]||'#8B93A0';
+    const accts = accountList.filter(([name])=>name.split(' · ')[0]===owner);
+    const maxAcct = accts.length ? Math.max(...accts.map(a=>a[1])) : 0;
+    const rows = accts.map(([name,val])=>{
+      const label = name.split(' · ')[1] || name;
+      const pct = maxAcct>0 ? (val/maxAcct*100).toFixed(1) : 0;
+      const keyAttr = name.replace(/"/g,'&quot;');
+      return `
+      <div class="bar-row clickable" data-account="${keyAttr}">
+        <div class="bar-top"><span class="bar-name">${label}</span><span class="bar-val">${fmt(val)}원</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>
+      </div>`;
+    }).join('');
+    return `
+    <div class="owner-group">
+      <div class="owner-group-head">
+        <span class="dot" style="background:${color};"></span>${owner}
+        <span class="owner-group-val">${fmt(ownerVal)}원</span>
+      </div>
+      ${rows}
+    </div>`;
+  }).join('');
+}
+
+function showAccountDetail(key){
+  const curIdx = MKEYS.indexOf(curMonthKey);
+  const monthLabel = MONTHS[curIdx] || '';
+  const prevIdx = curIdx - 1;
+  const prevMonthKey = prevIdx >= 0 ? MKEYS[prevIdx] : null;
+  const prevMonthLabel = prevIdx >= 0 ? MONTHS[prevIdx] : '—';
+  document.getElementById('detailMonthHeader').textContent = monthLabel;
+  document.getElementById('detailPrevMonthHeader').textContent = prevMonthLabel;
+  const rows = RAW.filter(r => (r.소유주 + ' · ' + r.계좌명) === key)
+    .slice().sort((a,b)=>(b[curMonthKey]||0)-(a[curMonthKey]||0));
+  document.getElementById('accountDetailTitle').textContent = `${key} · 보유 ${rows.length}종목`;
+  document.getElementById('accountDetailBody').innerHTML = rows.map(r=>`
+    <tr>
+      <td>${r.종목명}</td>
+      <td class="num">${r.최근배당률 || '—'}</td>
+      <td class="num"><b>${fmt(r[curMonthKey]||0)}</b></td>
+      <td class="num">${prevMonthKey ? fmt(r[prevMonthKey]||0) : '—'}</td>
+    </tr>`).join('');
+  const wrap = document.getElementById('accountDetailWrap');
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+document.getElementById('accountBars').addEventListener('click', (e)=>{
+  const row = e.target.closest('.bar-row');
+  if(!row) return;
+  showAccountDetail(row.dataset.account);
+});
+
+document.getElementById('closeDetail').addEventListener('click', ()=>{
+  document.getElementById('accountDetailWrap').style.display = 'none';
+});
+
+renderOwnerAccountSection();
+
+} // end initDashboard
+
+loadDataFromSheet();
+</script>
+
+<script>
+/* =========================================================
+   설정 · 다음배당 업데이트 마법사
+   ========================================================= */
+(function(){
+
+  // ---------- 로컬 저장 ----------
+  const LS_APPSCRIPT = 'div_apps_script_url';
+  const LS_LAST_PROCESSED = 'div_last_processed_date'; // YYYY-MM-DD
+  const LS_PROCESSED_LOG = 'div_processed_log'; // [{date,acct,name,amt}]
+
+  const getAppsScriptUrl = () => localStorage.getItem(LS_APPSCRIPT) || '';
+  const getLastProcessed = () => localStorage.getItem(LS_LAST_PROCESSED) || '';
+  const getProcessedLog = () => { try{ return JSON.parse(localStorage.getItem(LS_PROCESSED_LOG)||'[]'); }catch(e){ return []; } };
+  const addProcessedLog = (entry) => {
+    const log = getProcessedLog();
+    log.push(entry);
+    localStorage.setItem(LS_PROCESSED_LOG, JSON.stringify(log));
+  };
+  const isDuplicate = (entry) => getProcessedLog().some(e =>
+    e.date===entry.date && e.acct===entry.acct && e.name===entry.name && e.amt===entry.amt);
+
+  // ---------- 한국 공휴일 (2025~2026, 업무일 계산용) ----------
+  const KR_HOLIDAYS = new Set([
+    '2025-01-01','2025-01-27','2025-01-28','2025-01-29','2025-01-30',
+    '2025-03-01','2025-03-03','2025-05-05','2025-05-06','2025-06-06',
+    '2025-08-15','2025-10-03','2025-10-05','2025-10-06','2025-10-07','2025-10-08','2025-10-09',
+    '2025-12-25',
+    '2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-01','2026-03-02',
+    '2026-05-05','2026-05-24','2026-05-25','2026-06-06','2026-08-15','2026-08-17',
+    '2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05','2026-10-09',
+    '2026-12-25'
+  ]);
+  const pad2 = n => String(n).padStart(2,'0');
+  const toISO = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  const isBizDay = d => {
+    const day = d.getDay();
+    if(day===0 || day===6) return false;
+    if(KR_HOLIDAYS.has(toISO(d))) return false;
+    return true;
+  };
+  const addBizDays = (d, n) => {
+    let cur = new Date(d);
+    let left = n;
+    while(left>0){
+      cur.setDate(cur.getDate()+1);
+      if(isBizDay(cur)) left--;
+    }
+    return cur;
+  };
+  // 배당월 결정: 입금일자가 15일 근처면 그 달, 말일(28~31) 근처면 다음달로 넘어가는 +2영업일 규칙 적용
+  function resolveDividendMonth(depositDate){
+    const d = new Date(depositDate + 'T00:00:00');
+    const day = d.getDate();
+    // 기준일: 15일 이전 입금이면 '15일 기준', 그 이후면 '말일 기준'으로 판단
+    let baseDay, baseLabel;
+    if(day <= 20){
+      baseDay = 15; baseLabel = '15일 배당 기준';
+    } else {
+      const lastDate = new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+      baseDay = lastDate; baseLabel = `${lastDate}일(말일) 배당 기준`;
+    }
+    const baseDate = new Date(d.getFullYear(), d.getMonth(), baseDay);
+    const applyDate = addBizDays(baseDate, 2);
+    const monthKey = `${applyDate.getMonth()+1}월배당`;
+    return {
+      baseDate: toISO(baseDate), baseLabel,
+      applyDate: toISO(applyDate),
+      monthKey, monthLabel: `${applyDate.getMonth()+1}월배당`
+    };
+  }
+
+  // ---------- 카카오톡 대화 파싱 ----------
+  // 배당 인정 키워드 / 제외 키워드
+  const INCLUDE_KEYWORDS = ['배당금 입금 안내','분배금 입금 안내','결산분배금 입금','배당금 입금','분배금 입금'];
+  const EXCLUDE_KEYWORDS = ['단수주대금','배당 조회','조회 방법','안내드립니다만'];
+
+  function parseKakaoText(raw, sourceLabel){
+    // 메시지 블록 단위로 분리: 타임스탬프 라인을 기준으로 나눔
+    const lines = raw.replace(/\r\n/g,'\n').split('\n');
+    const results = [];
+    let curBlock = [];
+    const isTimestampLine = l => /^\d{4}년\s?\d{1,2}월\s?\d{1,2}일\s?(오전|오후)\s?\d{1,2}:\d{2}/.test(l.trim());
+
+    const flush = () => {
+      if(curBlock.length) results.push(curBlock.join('\n'));
+      curBlock = [];
+    };
+    lines.forEach(l=>{
+      if(isTimestampLine(l)){ flush(); }
+      curBlock.push(l);
+    });
+    flush();
+
+    const items = [];
+    results.forEach(block=>{
+      const hasInclude = INCLUDE_KEYWORDS.some(k=>block.includes(k));
+      const hasExclude = EXCLUDE_KEYWORDS.some(k=>block.includes(k));
+      if(!hasInclude || hasExclude) return;
+
+      // 홍보/챗봇 안내 문구 이후는 제거
+      const cut = block.split(/★|더 궁금한 업무가 있으시다면/)[0];
+
+      const nameM = cut.match(/종목명\s*[:：]\s*([^\n]+)/);
+      const acctM = cut.match(/계좌번호\s*[:：]\s*([^\n]+)/);
+      const amtM = cut.match(/입금액\s*[:：]\s*([\d,]+)\s*원/);
+      const dateM = cut.match(/입금일자\s*[:：]\s*(\d{4})년\s?(\d{1,2})월\s?(\d{1,2})일/);
+      const recvM = cut.match(/^(\d{4})년\s?(\d{1,2})월\s?(\d{1,2})일\s?(오전|오후)\s?(\d{1,2}):(\d{2})/);
+
+      if(!nameM || !acctM || !amtM || !dateM) return;
+
+      const name = nameM[1].trim();
+      const acctFull = acctM[1].trim();
+      const acctSuffix = (acctFull.match(/(\d[\d-]*\d)\s*$/) || [,acctFull])[1];
+      const amount = Number(amtM[1].replace(/,/g,''));
+      const depositDate = `${dateM[1]}-${pad2(dateM[2])}-${pad2(dateM[3])}`;
+      const receivedDate = recvM ? `${recvM[1]}-${pad2(recvM[2])}-${pad2(recvM[3])}` : depositDate;
+
+      items.push({
+        source: sourceLabel,
+        receivedDate, depositDate,
+        name, acctFull, acctSuffix, amount
+      });
+    });
+    return items;
+  }
+
+  // ---------- 시트에서 행 매칭 ----------
+  function findMatchRow(item){
+    return RAW.find(r =>
+      (r['계좌번호']||'').toString().includes(item.acctSuffix) &&
+      (r['종목명']||'').toString().trim() === item.name
+    );
+  }
+
+  // ---------- 화면(Overlay) 열기/닫기 공통 ----------
+  const $ = id => document.getElementById(id);
+  const openOv = id => $(id).classList.add('open');
+  const closeOv = id => $(id).classList.remove('open');
+
+  $('openSettingsBtn').addEventListener('click', ()=>{
+    $('appsScriptStatusLabel2').textContent = getAppsScriptUrl()
+      ? '배당 업데이트를 위한 Apps Script 웹앱 주소 등록 · 설정됨'
+      : '배당 업데이트를 위한 Apps Script 웹앱 주소 등록 · 미설정';
+    openOv('settingsOverlay');
+  });
+  $('closeSettingsBtn').addEventListener('click', ()=>closeOv('settingsOverlay'));
+
+  $('menuAppsScript').addEventListener('click', ()=>{
+    $('appsScriptUrlInput').value = getAppsScriptUrl();
+    closeOv('settingsOverlay');
+    openOv('appsScriptOverlay');
+  });
+  $('closeAppsScriptBtn').addEventListener('click', ()=>closeOv('appsScriptOverlay'));
+  $('cancelAppsScriptBtn').addEventListener('click', ()=>closeOv('appsScriptOverlay'));
+  $('saveAppsScriptBtn').addEventListener('click', ()=>{
+    localStorage.setItem(LS_APPSCRIPT, $('appsScriptUrlInput').value.trim());
+    closeOv('appsScriptOverlay');
+  });
+
+  // ---------- 마법사 상태 ----------
+  const wizard = {
+    step: 1, // 1:파일선택 2:날짜범위 3:미리보기 4:완료
+    sources: { 본인:'', 배우자:'' },
+    selected: { 본인:false, 배우자:false },
+    dateFrom: '', dateTo: '',
+    parsedItems: [],
+    matchedResults: [] // {item, row, monthInfo, status: ok|nomatch|dup}
+  };
+
+  function resetWizard(){
+    wizard.step = 1;
+    wizard.sources = { 본인:'', 배우자:'' };
+    wizard.selected = { 본인:false, 배우자:false };
+    const today = toISO(new Date());
+    const last = getLastProcessed();
+    wizard.dateFrom = last || today;
+    wizard.dateTo = today;
+    wizard.parsedItems = [];
+    wizard.matchedResults = [];
+  }
+
+  $('menuUpdateDividend').addEventListener('click', ()=>{
+    closeOv('settingsOverlay');
+    resetWizard();
+    renderWizard();
+    openOv('updateOverlay');
+  });
+  $('closeUpdateBtn').addEventListener('click', ()=>closeOv('updateOverlay'));
+
+  function renderStepDots(){
+    $('stepDots').innerHTML = [1,2,3,4].map(n=>{
+      const cls = n < wizard.step ? 'done' : (n===wizard.step ? 'active' : '');
+      return `<div class="step-dot ${cls}"></div>`;
+    }).join('');
+  }
+
+  function renderWizard(){
+    renderStepDots();
+    if(wizard.step===1) renderStep1();
+    else if(wizard.step===2) renderStep2();
+    else if(wizard.step===3) renderStep3();
+    else renderStep4();
+  }
+
+  // ---- Step 1: 대상 카톡 파일 선택 ----
+  function renderStep1(){
+    $('wizardBody').innerHTML = `
+      <div class="field-label">읽을 카카오톡 대화 파일 선택 (1개 또는 2개 모두 가능)</div>
+      <label class="check-card ${wizard.selected.본인?'checked':''}">
+        <input type="checkbox" id="chk본인" ${wizard.selected.본인?'checked':''}>
+        <div class="check-card-body">
+          <div class="check-card-title">본인 카카오톡 대화</div>
+          <div class="check-card-sub" id="file본인Label">${wizard.sources.본인 ? '파일 선택됨' : '파일을 선택해주세요 (.txt)'}</div>
+        </div>
+      </label>
+      <input type="file" accept=".txt" id="fileInput본인" style="display:none;">
+      <label class="check-card ${wizard.selected.배우자?'checked':''}">
+        <input type="checkbox" id="chk배우자" ${wizard.selected.배우자?'checked':''}>
+        <div class="check-card-body">
+          <div class="check-card-title">배우자 카카오톡 대화</div>
+          <div class="check-card-sub" id="file배우자Label">${wizard.sources.배우자 ? '파일 선택됨' : '파일을 선택해주세요 (.txt)'}</div>
+        </div>
+      </label>
+      <input type="file" accept=".txt" id="fileInput배우자" style="display:none;">
+      <div style="font-size:11px;color:var(--muted2);margin-top:6px;line-height:1.6;">
+        구글 드라이브 앱에서 카톡 대화 내보내기(.txt)를 다운로드한 뒤, 기기의 "파일" 선택창에서 구글 드라이브를 선택해 불러올 수 있습니다.
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="wizCancel1" type="button">취소</button>
+        <button class="btn btn-primary" id="wizNext1" type="button" disabled>다음</button>
+      </div>
+    `;
+    const updateNext = () => {
+      const ready = (wizard.selected.본인 && wizard.sources.본인) || (wizard.selected.배우자 && wizard.sources.배우자);
+      $('wizNext1').disabled = !ready;
+    };
+    ['본인','배우자'].forEach(who=>{
+      $(`chk${who}`).addEventListener('change', (e)=>{
+        wizard.selected[who] = e.target.checked;
+        if(e.target.checked && !wizard.sources[who]) $(`fileInput${who}`).click();
+        updateNext();
+      });
+      $(`fileInput${who}`).addEventListener('change', (e)=>{
+        const f = e.target.files[0];
+        if(!f) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          wizard.sources[who] = reader.result;
+          wizard.selected[who] = true;
+          $(`file${who}Label`).textContent = `파일 선택됨 · ${f.name}`;
+          $(`chk${who}`).checked = true;
+          updateNext();
+        };
+        reader.readAsText(f, 'utf-8');
+      });
+    });
+    $('wizCancel1').addEventListener('click', ()=>closeOv('updateOverlay'));
+    $('wizNext1').addEventListener('click', ()=>{ wizard.step=2; renderWizard(); });
+    updateNext();
+  }
+
+  // ---- Step 2: 날짜 범위 선택 ----
+  function renderStep2(){
+    const lastLabel = getLastProcessed() ? `마지막 처리일: ${getLastProcessed()}` : '이전 처리 이력 없음';
+    $('wizardBody').innerHTML = `
+      <div class="field-label">조회할 날짜 범위</div>
+      <div style="font-size:11.5px;color:var(--muted2);margin-bottom:8px;">${lastLabel} · 배당 문자가 며칠에 걸쳐 들어올 수 있어 마지막 처리일부터 다시 확인합니다.</div>
+      <div class="row-2">
+        <div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:4px;">시작일</div>
+          <input type="date" class="date-input" id="wizDateFrom" value="${wizard.dateFrom}">
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted2);margin-bottom:4px;">종료일</div>
+          <input type="date" class="date-input" id="wizDateTo" value="${wizard.dateTo}">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="wizBack2" type="button">이전</button>
+        <button class="btn btn-primary" id="wizNext2" type="button">다음</button>
+      </div>
+    `;
+    $('wizBack2').addEventListener('click', ()=>{ wizard.step=1; renderWizard(); });
+    $('wizNext2').addEventListener('click', ()=>{
+      wizard.dateFrom = $('wizDateFrom').value || wizard.dateFrom;
+      wizard.dateTo = $('wizDateTo').value || wizard.dateTo;
+      runParseAndMatch();
+      wizard.step=3; renderWizard();
+    });
+  }
+
+  function runParseAndMatch(){
+    let items = [];
+    if(wizard.selected.본인 && wizard.sources.본인) items = items.concat(parseKakaoText(wizard.sources.본인, '본인'));
+    if(wizard.selected.배우자 && wizard.sources.배우자) items = items.concat(parseKakaoText(wizard.sources.배우자, '배우자'));
+
+    items = items.filter(it => it.depositDate >= wizard.dateFrom && it.depositDate <= wizard.dateTo);
+    wizard.parsedItems = items;
+
+    wizard.matchedResults = items.map(item=>{
+      const monthInfo = resolveDividendMonth(item.depositDate);
+      const row = findMatchRow(item);
+      const dupKey = { date: item.depositDate, acct: item.acctSuffix, name: item.name, amt: item.amount };
+      let status = 'ok';
+      if(isDuplicate(dupKey)) status = 'dup';
+      else if(!row) status = 'nomatch';
+      return { item, monthInfo, row, dupKey, status };
+    });
+  }
+
+  // ---- Step 3: 미리보기 ----
+  function renderStep3(){
+    const list = wizard.matchedResults;
+    const okCount = list.filter(r=>r.status==='ok').length;
+    if(list.length===0){
+      $('wizardBody').innerHTML = `
+        <div class="preview-row warn">선택한 기간 내에서 유효한 배당 입금 메시지를 찾지 못했습니다.</div>
+        <div class="btn-row">
+          <button class="btn btn-secondary" id="wizBack3" type="button">이전</button>
+          <button class="btn btn-primary" id="wizClose3" type="button">닫기</button>
+        </div>`;
+      $('wizBack3').addEventListener('click', ()=>{ wizard.step=2; renderWizard(); });
+      $('wizClose3').addEventListener('click', ()=>closeOv('updateOverlay'));
+      return;
+    }
+    $('wizardBody').innerHTML = `
+      <div class="field-label">추출된 배당 내역 (${list.length}건 · 반영 대상 ${okCount}건)</div>
+      ${list.map(r=>{
+        const it = r.item;
+        const badge = r.status==='ok' ? '<span class="badge ok">반영 예정</span>'
+          : r.status==='dup' ? '<span class="badge dup">이미 처리됨</span>'
+          : '<span class="badge warn">일치 종목 없음</span>';
+        const cls = r.status==='nomatch' ? 'warn' : (r.status==='dup' ? 'dup' : '');
+        return `
+        <div class="preview-row ${cls}">
+          <div class="pr-top"><span>${it.name}</span>${badge}</div>
+          <div class="pr-line">${it.source} · 계좌 끝자리 ${it.acctSuffix} · ${it.amount.toLocaleString('ko-KR')}원</div>
+          <div class="pr-line">입금일자 ${it.depositDate} → ${r.monthInfo.monthLabel} (${r.monthInfo.baseLabel} +2영업일 = ${r.monthInfo.applyDate})</div>
+          ${it.receivedDate!==it.depositDate ? `<div class="pr-line">메시지 수신일 ${it.receivedDate}</div>` : ''}
+        </div>`;
+      }).join('')}
+      <div class="btn-row">
+        <button class="btn btn-secondary" id="wizBack3" type="button">이전</button>
+        <button class="btn btn-primary" id="wizRun3" type="button" ${okCount===0?'disabled':''}>업데이트 실행 (${okCount}건)</button>
+      </div>
+    `;
+    $('wizBack3').addEventListener('click', ()=>{ wizard.step=2; renderWizard(); });
+    $('wizRun3').addEventListener('click', runUpdate);
+  }
+
+  // ---- 실제 업데이트 실행 (Apps Script 웹앱 호출) ----
+  async function runUpdate(){
+    const url = getAppsScriptUrl();
+    const targets = wizard.matchedResults.filter(r=>r.status==='ok');
+    if(!url){
+      $('wizardBody').innerHTML = `
+        <div class="preview-row warn">시트 연동 주소(Apps Script)가 설정되지 않았습니다. 설정 화면에서 먼저 등록해주세요.</div>
+        <div class="btn-row"><button class="btn btn-primary" id="wizGoSettings" type="button">연동 주소 설정하러 가기</button></div>`;
+      $('wizGoSettings').addEventListener('click', ()=>{
+        closeOv('updateOverlay');
+        $('appsScriptUrlInput').value = '';
+        openOv('appsScriptOverlay');
+      });
+      return;
+    }
+
+    $('wizardBody').innerHTML = `<div class="preview-row">업데이트 중입니다…</div>`;
+
+    let successCount = 0, failResults = [];
+    try{
+      const payload = {
+        action: 'updateDividend',
+        updates: targets.map(r => ({
+          계좌번호뒷자리: r.item.acctSuffix,
+          종목명: r.item.name,
+          월컬럼: r.monthInfo.monthKey,
+          금액: r.item.amount
+        }))
+      };
+      const resp = await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'text/plain;charset=utf-8'},
+        body: JSON.stringify(payload)
+      });
+      const result = await resp.json();
+      successCount = (result && result.successCount) || 0;
+      failResults = (result && result.failed) || [];
+    }catch(err){
+      failResults = targets.map(r=>({ 종목명:r.item.name, 사유: '연동 오류: '+(err.message||err) }));
+    }
+
+    targets.forEach(r=>addProcessedLog(r.dupKey));
+    localStorage.setItem(LS_LAST_PROCESSED, wizard.dateTo);
+
+    wizard.summary = {
+      total: wizard.matchedResults.length,
+      success: successCount,
+      nomatch: wizard.matchedResults.filter(r=>r.status==='nomatch').length,
+      dup: wizard.matchedResults.filter(r=>r.status==='dup').length,
+      failResults
+    };
+    wizard.step = 4;
+    renderWizard();
+  }
+
+  // ---- Step 4: 완료 ----
+  function renderStep4(){
+    const s = wizard.summary || {total:0,success:0,nomatch:0,dup:0,failResults:[]};
+    $('wizardBody').innerHTML = `
+      <div class="field-label">업데이트 완료</div>
+      <div class="summary-grid">
+        <div class="summary-cell">처리 건수<b>${s.total}</b></div>
+        <div class="summary-cell">업데이트 성공<b style="color:var(--teal);">${s.success}</b></div>
+        <div class="summary-cell">일치하지 않음<b style="color:var(--down);">${s.nomatch}</b></div>
+        <div class="summary-cell">중복 제외<b>${s.dup}</b></div>
+      </div>
+      ${s.failResults && s.failResults.length ? `
+        <div class="field-label">반영 실패 항목</div>
+        ${s.failResults.map(f=>`<div class="preview-row warn">${f.종목명||''} — ${f.사유||''}</div>`).join('')}
+      ` : ''}
+      <div class="btn-row">
+        <button class="btn btn-primary" id="wizFinish4" type="button">확인</button>
+      </div>
+    `;
+    $('wizFinish4').addEventListener('click', ()=>{
+      closeOv('updateOverlay');
+      loadDataFromSheet();
+    });
+  }
+
+})();
+</script>
+</body>
+</html>
