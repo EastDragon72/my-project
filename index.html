@@ -863,19 +863,36 @@ loadDataFromSheet();
       const dateM = cut.match(/입금일자\s*[:：]\s*(\d{4})년\s?(\d{1,2})월\s?(\d{1,2})일/);
       const recvM = cut.match(/^(\d{4})년\s?(\d{1,2})월\s?(\d{1,2})일\s?(오전|오후)\s?(\d{1,2}):(\d{2})/);
 
-      if(!nameM || !acctM || !amtM || !dateM) return;
+      // 토스증권 알림 형식:
+      // "9월2일 RISE ... 배당금 215,763원이 토스증권 계좌로 입금됐어요."
+      // 기존 카카오톡 상세 형식과 달리 필드명이 없고 날짜에도 연도가 없다.
+      const tossM = cut.match(/(?:^|\n)\s*(\d{1,2})월\s*(\d{1,2})일\s+(.+?)\s+배당금\s+([\d,]+)원(?:이|가)\s+(.+?)\s+계좌로\s+입금(?:됐어요|되었습니다|되었어요|됐습니다)\.?/);
+      let parsedName = nameM ? nameM[1].trim() : '';
+      let parsedAcctFull = acctM ? acctM[1].trim() : '';
+      let parsedAmount = amtM ? Number(amtM[1].replace(/,/g,'')) : 0;
+      let parsedDepositDate = dateM ? `${dateM[1]}-${pad2(dateM[2])}-${pad2(dateM[3])}` : '';
+      if(tossM){
+        const year = new Date().getFullYear();
+        parsedDepositDate = `${year}-${pad2(tossM[1])}-${pad2(tossM[2])}`;
+        parsedName = tossM[3].trim();
+        parsedAmount = Number(tossM[4].replace(/,/g,''));
+        parsedAcctFull = tossM[5].trim();
+      }
 
-      const name = nameM[1].trim();
-      const acctFull = acctM[1].trim();
-      const acctSuffix = (acctFull.match(/(\d[\d-]*\d)\s*$/) || [,acctFull])[1];
-      const amount = Number(amtM[1].replace(/,/g,''));
-      const depositDate = `${dateM[1]}-${pad2(dateM[2])}-${pad2(dateM[3])}`;
+      if(!parsedName || !parsedAmount || !parsedDepositDate) return;
+
+      const name = parsedName;
+      const acctFull = parsedAcctFull;
+      const acctName = tossM ? parsedAcctFull : '';
+      const acctSuffix = (acctFull.match(/(\d[\d-]*\d)\s*$/) || [, ''])[1];
+      const amount = parsedAmount;
+      const depositDate = parsedDepositDate;
       const receivedDate = recvM ? `${recvM[1]}-${pad2(recvM[2])}-${pad2(recvM[3])}` : depositDate;
 
       items.push({
         source: sourceLabel,
         receivedDate, depositDate,
-        name, acctFull, acctSuffix, amount
+        name, acctFull, acctName, acctSuffix, amount
       });
     });
     return items;
@@ -884,7 +901,9 @@ loadDataFromSheet();
   // ---------- 시트에서 행 매칭 ----------
   function findMatchRow(item){
     return RAW.find(r =>
-      (r['계좌번호']||'').toString().includes(item.acctSuffix) &&
+      (item.acctSuffix
+        ? (r['계좌번호']||'').toString().includes(item.acctSuffix)
+        : item.acctName && (r['계좌명']||'').toString().trim() === item.acctName) &&
       (r['종목명']||'').toString().trim() === item.name
     );
   }
